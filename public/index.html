@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Real-time Live Poker Pot Tracker - The premium companion app to manage chips, pots, side pots, and settlements for your physical poker games.">
+  <title>Poker Pot Tracker — Live Game Companion</title>
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <!-- CSS Stylesheet -->
+  <link rel="stylesheet" href="style.css">
+  <!-- Socket.io client -->
+  <script src="/socket.io/socket.io.js"></script>
+</head>
+<body>
+
+  <!-- Background Ambient Glows -->
+  <div class="ambient-glow bg-glow-1"></div>
+  <div class="ambient-glow bg-glow-2"></div>
+
+  <!-- MAIN APP WRAPPER -->
+  <main id="app-container">
+    
+    <!-- HEADER -->
+    <header class="app-header">
+      <div class="logo">
+        <span class="logo-icon">♣</span>
+        <h1>Poker Pot Tracker</h1>
+      </div>
+      <div id="room-badge" class="room-badge hidden">
+        <span>Room: </span><strong id="badge-code">------</strong>
+      </div>
+    </header>
+
+    <!-- MODULE 1: LANDING / LOBBY JOIN -->
+    <section id="landing-screen" class="app-card glassmorphic">
+      <div class="landing-header">
+        <h2>Live Poker Companion</h2>
+        <p>A CTO-grade real-time engine to track chips, side pots, and final peer-to-peer cash settlements for physical poker nights.</p>
+      </div>
+
+      <div class="landing-options">
+        <!-- Create Room Column -->
+        <div class="option-column">
+          <h3>Host a New Table</h3>
+          <p>Create a poker room and manage dealer flows, buy-ins, and settlements.</p>
+          <div class="input-group">
+            <label for="host-name-input">Host Player Name</label>
+            <input type="text" id="host-name-input" placeholder="e.g. Michael (Host)" maxlength="16">
+          </div>
+          <button id="btn-create-room" class="btn btn-primary btn-glow">Create Room</button>
+        </div>
+
+        <div class="divider-text">OR</div>
+
+        <!-- Join Room Column -->
+        <div class="option-column">
+          <h3>Join Table</h3>
+          <p>Enter an invite code to join a seat, buy-in, and execute bets from your own device.</p>
+          <div class="input-group">
+            <label for="join-code-input">6-Digit Room Code</label>
+            <input type="text" id="join-code-input" placeholder="e.g. ABC123" maxlength="6" style="text-transform: uppercase;">
+          </div>
+          <div class="input-group">
+            <label for="player-name-input">Player Name</label>
+            <input type="text" id="player-name-input" placeholder="e.g. David" maxlength="16">
+          </div>
+          <button id="btn-join-room" class="btn btn-secondary">Join Room</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- MODULE 2: GAMEPLAY CONTAINER (TABLE + CONTROLS) -->
+    <section id="game-screen" class="hidden">
+      
+      <!-- Top Action Bar -->
+      <div class="game-action-bar">
+        <div class="game-info-pills">
+          <div class="info-pill">
+            <span class="pill-label">Blinds:</span>
+            <span id="pill-blinds" class="pill-value">10 / 20</span>
+          </div>
+          <div class="info-pill">
+            <span class="pill-label">Hand:</span>
+            <span id="pill-hand-number" class="pill-value">#0</span>
+          </div>
+          <div class="info-pill">
+            <span class="pill-label">Round:</span>
+            <span id="pill-hand-status" class="pill-value">LOBBY</span>
+          </div>
+        </div>
+        
+        <div class="host-header-controls hidden" id="host-action-buttons">
+          <button id="btn-host-end-session" class="btn btn-danger btn-sm">End Hand & Cash Out</button>
+        </div>
+      </div>
+
+      <!-- Main Layout Grid -->
+      <div class="game-grid">
+        
+        <!-- Left Side: Table & Controls -->
+        <div class="table-area-wrapper">
+          
+          <!-- POKER TABLE VISUALIZER -->
+          <div class="poker-table-container">
+            <div class="poker-table-felt">
+              <div class="poker-table-inner-border"></div>
+              
+              <!-- Center Pot Display -->
+              <div class="table-center-display">
+                <div id="pot-status-label" class="pot-title">TOTAL POT</div>
+                <div id="total-pot-amount" class="pot-value">0</div>
+                <div id="side-pots-container" class="side-pots-list">
+                  <!-- Dynamic Side Pots listed here -->
+                </div>
+              </div>
+
+              <!-- Seating Layout (Seats 1-8) -->
+              <div class="seats-layout">
+                <!-- Dynamic Seat Nodes (with absolute positions) -->
+                <div id="seat-1" class="seat-slot pos-1" data-seat="1"></div>
+                <div id="seat-2" class="seat-slot pos-2" data-seat="2"></div>
+                <div id="seat-3" class="seat-slot pos-3" data-seat="3"></div>
+                <div id="seat-4" class="seat-slot pos-4" data-seat="4"></div>
+                <div id="seat-5" class="seat-slot pos-5" data-seat="5"></div>
+                <div id="seat-6" class="seat-slot pos-6" data-seat="6"></div>
+                <div id="seat-7" class="seat-slot pos-7" data-seat="7"></div>
+                <div id="seat-8" class="seat-slot pos-8" data-seat="8"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- PLAYER INTERACTIVE CONTROLS -->
+          <div id="player-control-panel" class="app-card glassmorphic-panel">
+            <div id="unseated-banner" class="panel-banner">
+              <p>Please select an empty seat on the table felt to join the game.</p>
+            </div>
+            
+            <div id="buy-in-banner" class="panel-banner hidden">
+              <p>Seated! You need chips to play.</p>
+              <div class="flex-row gap-md">
+                <input type="number" id="buy-in-amount" value="1000" min="10" step="50" class="input-sm">
+                <button id="btn-submit-buyin" class="btn btn-primary btn-sm">Buy-In / Add Chips</button>
+                <button id="btn-stand-up" class="btn btn-secondary btn-sm">Stand Up</button>
+              </div>
+            </div>
+
+            <div id="turn-controls" class="turn-controls-container hidden">
+              <div class="turn-header">
+                <span class="active-badge">YOUR TURN</span>
+                <span id="turn-call-info" class="turn-details">Current Bet: 0</span>
+              </div>
+              
+              <div class="action-buttons-row">
+                <button id="btn-fold" class="btn btn-action btn-fold">FOLD</button>
+                <button id="btn-check-call" class="btn btn-action btn-call">CHECK / CALL</button>
+                <button id="btn-bet-raise" class="btn btn-action btn-raise">BET / RAISE</button>
+                <button id="btn-all-in" class="btn btn-action btn-allin">ALL-IN</button>
+              </div>
+
+              <!-- Raise Slider Controls -->
+              <div id="raise-slider-container" class="raise-slider-box hidden">
+                <div class="raise-labels">
+                  <span>Min: <strong id="raise-min-val">0</strong></span>
+                  <span id="raise-current-display" class="raise-current-indicator">Raise to: 0</span>
+                  <span>Max: <strong id="raise-max-val">0</strong></span>
+                </div>
+                <div class="slider-row">
+                  <input type="range" id="raise-range-slider" min="0" max="0" value="0">
+                  <input type="number" id="raise-number-input" class="input-sm raise-input" min="0" value="0">
+                </div>
+              </div>
+            </div>
+
+            <div id="waiting-banner" class="panel-banner hidden">
+              <p id="waiting-message">Waiting for hand to start...</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right Side: Sidebar Log & Buy-In Ledger -->
+        <div class="game-sidebar">
+          
+          <!-- HOST DECK PANEL (Visible only to Host) -->
+          <div id="host-deck-panel" class="app-card glassmorphic-panel host-deck hidden">
+            <h4>Host Control Panel</h4>
+            <div class="host-actions-grid">
+              <button id="btn-host-deal" class="btn btn-primary btn-sm btn-block">Deal Next Hand</button>
+              <button id="btn-host-undo" class="btn btn-secondary btn-sm btn-block" disabled>Undo Last Action</button>
+              <button id="btn-host-cancel" class="btn btn-secondary btn-sm btn-block" disabled>Cancel Hand</button>
+              <button id="btn-host-add-bot" class="btn btn-secondary btn-sm btn-block">Add Bot Player</button>
+            </div>
+            <div id="bot-simulation-controls" class="bot-sim-box hidden">
+              <h5 class="sim-title">Virtual Bot Operations</h5>
+              <div class="sim-turn-info">
+                <span>Active Bot: </span><strong id="sim-bot-name">None</strong>
+              </div>
+              <div class="flex-row gap-xs">
+                <button id="btn-sim-fold" class="btn btn-secondary btn-xs">Fold</button>
+                <button id="btn-sim-check-call" class="btn btn-secondary btn-xs">Check/Call</button>
+                <button id="btn-sim-raise" class="btn btn-secondary btn-xs">Raise</button>
+                <button id="btn-sim-all-in" class="btn btn-secondary btn-xs">All-in</button>
+              </div>
+              <input type="number" id="sim-raise-amt" placeholder="Raise amount" class="input-xs block-margin">
+            </div>
+          </div>
+
+          <!-- LOG / ACTION HISTORY -->
+          <div class="app-card glassmorphic-panel log-panel">
+            <h4>Hand Action History</h4>
+            <div id="action-history-log" class="log-content">
+              <!-- Action logs will append here -->
+              <div class="log-entry system">Welcome. Set seats and buy-in to start.</div>
+            </div>
+          </div>
+
+          <!-- ACTIVE PLAYERS LEDGER LIST -->
+          <div class="app-card glassmorphic-panel ledger-panel">
+            <h4>Seated Stack Status</h4>
+            <div id="seated-players-status-list" class="status-list">
+              <!-- Seated player buyins -->
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- MODULE 3: SETTLEMENT SCREEN -->
+    <section id="settlement-screen" class="app-card glassmorphic hidden">
+      <div class="settlement-header">
+        <h2>Game Session Cash-Out & Settle</h2>
+        <p>Confirm the final chips on table. Net ledger must balance before final payments can resolve.</p>
+      </div>
+
+      <div class="settlement-body">
+        
+        <!-- Left: Ledger balance sheet -->
+        <div class="settlement-ledger-area">
+          <h3>Stack Ledger</h3>
+          <table class="ledger-table">
+            <thead>
+              <tr>
+                <th>Player Name</th>
+                <th>Total Buy-Ins</th>
+                <th>Physical Cash-Out</th>
+                <th>Net Profit</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="settlement-table-body">
+              <!-- Dynamic player cashouts -->
+            </tbody>
+          </table>
+
+          <div id="ledger-balance-alert" class="ledger-balance-status alert-warning">
+            <span id="ledger-balance-text">Ledger is out of balance. Difference: -$0.00</span>
+          </div>
+        </div>
+
+        <!-- Right: P2P Settlements -->
+        <div class="settlement-transfers-area">
+          <h3>Settlement P2P Payment Instructions</h3>
+          <p class="section-desc">P2P directions generated by the engine. Distribute physical cash or Venmo/UPI accordingly:</p>
+          <div id="transfers-container" class="transfers-list">
+            <!-- Dynamic peer transfers -->
+            <div class="no-transfers-banner">No transfers generated. Ledger must be balanced.</div>
+          </div>
+          
+          <div class="flex-row justify-center margin-top-lg">
+            <button id="btn-reset-session" class="btn btn-secondary">Start a New Game Session</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- POPUP MODALS -->
+    <!-- Host Decides Winner Modal -->
+    <div id="winner-modal" class="modal-overlay hidden">
+      <div class="modal-card glassmorphic">
+        <h3>Declare Winners</h3>
+        <p>Since card play is physical, please declare the winner(s) of this hand. Stacks will update automatically.</p>
+        
+        <div id="modal-pots-container" class="modal-pots-list">
+          <!-- Dynamic pot rows with player selection checkboxes -->
+        </div>
+
+        <div class="modal-actions">
+          <button id="btn-submit-winners" class="btn btn-primary">Distribute Pots</button>
+          <button id="btn-cancel-winners" class="btn btn-secondary">Cancel</button>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <footer class="app-footer">
+    <p>Powered by Antigravity Poker Table Engine. Licensed under MIT.</p>
+  </footer>
+
+  <!-- Frontend Javascript logic -->
+  <script src="app.js"></script>
+</body>
+</html>

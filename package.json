@@ -1,0 +1,15 @@
+{
+  "name": "poker-pot-tracker",
+  "version": "1.0.0",
+  "description": "Real-time Live Poker Pot Tracker",
+  "main": "server.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node tests/pot-calculator.test.js && node tests/game-state.test.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "socket.io": "^4.7.5"
+  }
+}
