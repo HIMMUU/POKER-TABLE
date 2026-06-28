@@ -10,7 +10,9 @@ class RoomManager {
   constructor() {
     this.rooms = {}; // roomCode -> { game: GameState, ledger: SettlementLedger }
   }
-
+constructor as = (){
+  
+}
   /**
    * Generates a unique 6-character room code.
    * @returns {string}
